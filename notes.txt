@@ -1,0 +1,2 @@
+in vim- to prevent changes in the buffer:
+:set nomodifiable
