@@ -9,6 +9,7 @@ from java.lang import Exception as JavaException
 
 class VMConnection:
     def __init__(self, hostname="localhost", port=8000):#{{{
+        self.host, self.port = hostname, port
         connector = Bootstrap.virtualMachineManager().attachingConnectors()[0]
         args = connector.defaultArguments()
         host, timeout, port = [args.get(x) for x in ("hostname", "timeout","port")]

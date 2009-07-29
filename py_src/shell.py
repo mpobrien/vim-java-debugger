@@ -2,6 +2,7 @@ import sys, os
 import re
 from java.lang import Runnable, Thread, Throwable
 from jvm_interface import VMConnection
+import getopt
 
 
 
@@ -23,7 +24,10 @@ class DebuggerShell:
 
     def run_shell( self ):#{{{
         while True:
-            print ">>> ", 
+            if self.vm_connection and self.vm_connection.is_connected():
+                print "(JPDA: %s:%s) >>> " % (self.vm_connection.host, self.vm_connection.port), 
+            else:
+                print "(not connected)>>> ",
             try:
                 command = raw_input()
                 self.command_processor.decode_command( command )
@@ -35,7 +39,6 @@ class DebuggerShell:
             self.vm_connection.close()
         print ""
         sys.exit( 0 )#}}}
-
 
     def sourcedir(self, *args):#{{{
         """ Crawl a directory to add to the list of sources """
@@ -49,8 +52,7 @@ class DebuggerShell:
             walk(args[0], processor)
             print "Added all .java files under " + args[0]#}}}
 
-
-    def classes(self, *args):
+    def classes(self, *args):#{{{
         """
         Display a list of classes loaded on the connected JPDA host
         """
@@ -62,8 +64,7 @@ class DebuggerShell:
             try: sourcename = c.sourceName()
             except: sourcename = "(unknown)"
             print c, sourcename
-        print len(classesList), "classes loaded"
-
+        print len(classesList), "classes loaded"#}}}
 
     def connect(self, *args):#{{{
         """
@@ -78,6 +79,23 @@ class DebuggerShell:
             print "(py) Couldn't connect: ", e
         except Throwable, t:
             print "(j) Couldn't connect: ", t#}}}
+
+    def disconnect(self, *args):#{{{
+        """
+        disconnect (no args)
+        Closes the current connection to a JPDA host, if its currently connected.
+        """
+        if not self.vm_connection or not self.vm_connection.is_connected():
+            print "not connected to a JPDA host"
+            return
+        else:
+            self.vm_connection.close()#}}}
+
+    def breakpoint(self, *args):
+        pass 
+
+    def clear_breakpoints(self, *args):
+        pass
 
 
 class CommandProcessor:
@@ -100,15 +118,29 @@ class CommandProcessor:
                 command_func = getattr( self.shell, func_key )
             except:
                 command_func = None
+
             if not command_func:
                 print "unknown command: ", command_parts[0]
             else:
                 if command_parts[0] == 'help': print command_func.__doc__
                 else: command_func(*command_parts[1:])#}}}
 
-
-def main():
+def main(argv):
+    opts, args = getopt.getopt( argv, "s:h:p:", ["source", "host", "port"] )
+    host, port = None, None
     shell_handler = DebuggerShell()
+    for opt, arg in opts:
+        if opt in ("-s", "source"):
+            shell_handler.sourcedir( arg )
+        if opt in ("-h", "host"):
+            host = arg
+        if opt in ("-p", "port"):
+            port = arg
+    if host or port:
+        if not host or not port:
+            print "Both a port name and host is required to connect"
+        elif host and port:
+            shell_handler.connect(*[host, port] )
     shell_handler.run_shell()
 
-if __name__ == '__main__': main()
+if __name__ == '__main__': main(sys.argv[1:])
