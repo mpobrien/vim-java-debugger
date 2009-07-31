@@ -3,6 +3,7 @@ import re
 from java.lang import Runnable, Thread, Throwable
 from jvm_interface import VMConnection
 import getopt
+from eventhandler import EventHandler
 
 
 
@@ -65,6 +66,48 @@ class DebuggerShell:
             except: sourcename = "(unknown)"
             print c, sourcename
         print len(classesList), "classes loaded"#}}}
+
+    def watchevents(self, *args):
+        self.event_handler = EventHandler( self.vm_connection.vm )
+        self.event_handler.start()
+
+    def addbp(self, *args):
+        """
+        addbp <classname> <linenumber>
+        """
+        srcfileName, linenum = args[0], int( args[1] )
+        possibles = []
+        for iclass in self.vm_connection.vm.allClasses():
+            try:
+                if iclass.sourceName() == srcfileName:
+
+                    locs = iclass.locationsOfLine( linenum )
+                    for l in locs:
+                        print l
+                        possibles.append( l )
+            except Throwable, t:
+                print t
+        print possibles, len(possibles)
+        if possibles:
+            req_manager = self.vm_connection.vm.eventRequestManager()
+            req = req_manager.createBreakpointRequest( possibles [0] )
+            req.enable()
+
+    def newrequest(self, *args):
+        """
+        newrequest classload
+        """
+        request_type = args[0]
+        req_manager = self.vm_connection.vm.eventRequestManager()
+        req = None
+        if request_type == 'classload':
+            req = req_manager.createClassPrepareRequest()
+
+        if req is not None:
+            req.enable()
+
+
+
 
     def connect(self, *args):#{{{
         """
